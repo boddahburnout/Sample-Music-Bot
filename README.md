@@ -1,2 +1,2 @@
 # Sample-Music-Bot
-basic music bot
+basic bot with common music commands
