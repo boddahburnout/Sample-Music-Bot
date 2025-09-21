@@ -27,7 +27,9 @@ public abstract class Main {
                 new Queue(),
                 new Remove(),
                 new Shuffle(),
-                new Skip()
+                new Skip(),
+                new Volume(),
+                new PlayNow()
         );
         try {
             new ConfigManager().setConfig();

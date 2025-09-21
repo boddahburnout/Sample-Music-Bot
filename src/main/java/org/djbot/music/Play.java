@@ -1,9 +1,5 @@
 package org.djbot.music;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.youtube.YouTube;
-import com.google.api.services.youtube.model.SearchListResponse;
 import com.google.api.services.youtube.model.SearchResult;
 import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
@@ -12,15 +8,11 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.EmbedWrapper;
-import org.djbot.Utils.TrackResult;
-import org.djbot.Utils.PlayerManager;
-import org.djbot.Utils.Thumbnail;
+import org.djbot.Utils.*;
+import org.djbot.category.BotCategories;
 import org.djbot.config.ConfigManager;
 import org.simpleyaml.configuration.file.YamlFile;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,6 +20,7 @@ public class Play extends Command {
     public Play() {
         this.name = "play";
         this.help = "Play music";
+        this.category = new BotCategories().MusicCat();
     }
 
     @Override
@@ -42,8 +35,6 @@ public class Play extends Command {
         boolean isDeaf = member.getVoiceState().isDeafened();
         String args = e.getArgs();
         YamlFile botConfig = new ConfigManager().accessConfig();
-        String token = botConfig.getString("Global.Youtube-Token");
-        JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
         if (!state) {
             textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "Join the voice channel first!", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
             return;
@@ -57,41 +48,27 @@ public class Play extends Command {
             return;
         }
         try {
-            YouTube youTubeService = new YouTube.Builder(
-                    GoogleNetHttpTransport.newTrustedTransport(),
-                    JSON_FACTORY,
-                    null
-            ).setApplicationName("Bartender Bot").build();
-
-            YouTube.Search.List request = youTubeService.search().list("id,snippet");
-            SearchListResponse response = request.setKey(token)
-                    .setQ(args)
-                    .setType("video")
-                    .setMaxResults(5L)
-                    .execute();
-
             if (e.getArgs().startsWith("http")) {
-                playerManager.loadAndPlay(guild.getIdLong(), e.getArgs(), trackResult -> {
-                    TrackResult.Status status = trackResult.getStatus();
-                    response(status, textChannel, trackResult.getTrack(), trackResult.getPlaylist());
+                playerManager.loadAndPlay(guild.getIdLong(), e.getArgs(), loadResult -> {
+                    TrackResult.Status status = loadResult.getStatus();
+                    response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
                 });
-                playerManager.getGuildMusicManager(guild.getIdLong()).player.setVolume(10);
             } else {
-                List<SearchResult> results = response.getItems();
+                YouTubeSearcher yt = new YouTubeSearcher();
+                List<SearchResult> results = yt.search(args, 5);
                 if (results != null && !results.isEmpty()) {
                     SearchResult firstResult = results.get(0);
                     String videoId = firstResult.getId().getVideoId();
                     String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
-                    playerManager.loadAndPlay(guild.getIdLong(), videoUrl, trackResult -> {
-                        TrackResult.Status status = trackResult.getStatus();
-                        response(status, textChannel, trackResult.getTrack(), trackResult.getPlaylist());
+                    playerManager.loadAndPlay(guild.getIdLong(), videoUrl, loadResult -> {
+                        TrackResult.Status status = loadResult.getStatus();
+                        response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
                     });
-                    playerManager.getGuildMusicManager(guild.getIdLong()).player.setVolume(10);
                 }
+                int volume = botConfig.getInt("Settings.Guilds." + guild.getId() + ".Volume", 50);
+                playerManager.getGuildMusicManager(guild.getIdLong()).player.setVolume(volume);
             }
-        } catch (GeneralSecurityException ex) {
-            throw new RuntimeException(ex);
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }

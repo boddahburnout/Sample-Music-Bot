@@ -8,11 +8,13 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import org.djbot.Utils.EmbedWrapper;
 import org.djbot.Utils.PlayerManager;
 import org.djbot.Utils.Thumbnail;
+import org.djbot.category.BotCategories;
 
 public class Playing extends Command {
     public Playing() {
         this.name = "playing";
         this.help = "See what's playing";
+        this.category = new BotCategories().MusicCat();
     }
 
     @Override

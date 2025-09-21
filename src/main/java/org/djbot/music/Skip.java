@@ -5,12 +5,12 @@ import com.jagrosh.jdautilities.command.CommandEvent;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import org.djbot.Utils.EmbedWrapper;
 import org.djbot.Utils.GuildMusicManager;
 import org.djbot.Utils.PlayerManager;
 import org.djbot.Utils.Thumbnail;
+import org.djbot.category.BotCategories;
 
 import java.util.Objects;
 
@@ -18,6 +18,7 @@ public class Skip extends Command {
     public Skip() {
         this.name = "skip";
         this.help = "Skip the playing song";
+        this.category = new BotCategories().MusicCat();
     }
 
     @Override

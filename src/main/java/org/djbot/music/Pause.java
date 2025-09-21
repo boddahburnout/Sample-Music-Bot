@@ -5,10 +5,10 @@ import com.jagrosh.jdautilities.command.CommandEvent;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import org.djbot.Utils.EmbedWrapper;
 import org.djbot.Utils.PlayerManager;
+import org.djbot.category.BotCategories;
 
 import java.util.Objects;
 
@@ -16,6 +16,7 @@ public class Pause extends Command {
     public Pause() {
         this.name = "Pause";
         this.help = "Pause the audio";
+        this.category = new BotCategories().MusicCat();
     }
     @Override
     protected void execute(CommandEvent e) {

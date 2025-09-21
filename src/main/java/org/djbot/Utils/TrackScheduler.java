@@ -28,6 +28,25 @@ public class TrackScheduler extends AudioEventAdapter {
         }
     }
 
+    public void shuffleQueue() {
+        List<AudioTrack> tracks = new ArrayList<>(queue);
+        queue.clear();
+
+        AudioTrack current = player.getPlayingTrack();
+        if (current != null) {
+            tracks.add(current.makeClone()); // put it back into pool
+            player.stopTrack();
+        }
+
+        Collections.shuffle(tracks);
+        queue.addAll(tracks);
+
+        // start new first track
+        if (!queue.isEmpty()) {
+            player.startTrack(queue.poll(), false);
+        }
+    }
+
     /** Start next track in queue */
     public void nextTrack() {
         AudioTrack next = queue.poll();
@@ -52,6 +71,16 @@ public class TrackScheduler extends AudioEventAdapter {
     public void shuffle() {
         List<AudioTrack> temp = new ArrayList<>(queue);
         Collections.shuffle(temp);
+        queue.clear();
+        queue.addAll(temp);
+    }
+
+    public void queueFirst(AudioTrack track) {
+        queue.removeIf(t -> t.getIdentifier().equals(track.getIdentifier()));
+
+        List<AudioTrack> temp = new ArrayList<>();
+        temp.add(track);       // new first track
+        temp.addAll(queue);    // existing tracks
         queue.clear();
         queue.addAll(temp);
     }

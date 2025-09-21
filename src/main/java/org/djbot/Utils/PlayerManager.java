@@ -1,9 +1,12 @@
 package org.djbot.Utils;
 
-import com.sedmelluq.discord.lavaplayer.player.*;
+import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
+import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.*;
+import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import dev.lavalink.youtube.YoutubeAudioSourceManager;
 import net.dv8tion.jda.api.JDA;
 import org.djbot.Main;
@@ -49,6 +52,69 @@ public class PlayerManager {
         return manager;
     }
 
+    public void loadAndPlayNow(long guildId, String trackUrl, Consumer<TrackResult> callback) {
+        GuildMusicManager musicManager = getGuildMusicManager(guildId);
+
+        AudioTrack currentlyPlaying = musicManager.player.getPlayingTrack(); // save current track
+        if (currentlyPlaying != null) {
+            musicManager.player.stopTrack(); // stop it immediately
+        }
+
+        playerManager.loadItemOrdered(musicManager, trackUrl, new AudioLoadResultHandler() {
+            @Override
+            public void trackLoaded(AudioTrack track) {
+                musicManager.player.startTrack(track, false); // play immediately
+
+                // If there was a track already playing, push it back to the front
+                if (currentlyPlaying != null) {
+                    musicManager.scheduler.queueFirst(currentlyPlaying);
+                }
+
+                callback.accept(new TrackResult(TrackResult.Status.TRACK_LOADED, track, null, null));
+            }
+
+            @Override
+            public void playlistLoaded(AudioPlaylist playlist) {
+                if (playlist.isSearchResult()) {
+                    AudioTrack firstTrack = playlist.getTracks().get(0);
+                    musicManager.player.startTrack(firstTrack, false);
+
+                    if (currentlyPlaying != null) {
+                        musicManager.scheduler.queueFirst(currentlyPlaying);
+                    }
+
+                    callback.accept(new TrackResult(TrackResult.Status.SEARCH_RESULT, firstTrack, playlist,  null));
+                } else {
+                    // For playlists, play the first track immediately
+                    AudioTrack firstTrack = playlist.getTracks().get(0);
+                    musicManager.player.startTrack(firstTrack, false);
+
+                    // Queue the rest of the playlist
+                    for (int i = 1; i < playlist.getTracks().size(); i++) {
+                        musicManager.scheduler.queue(playlist.getTracks().get(i));
+                    }
+
+                    if (currentlyPlaying != null) {
+                        musicManager.scheduler.queueFirst(currentlyPlaying);
+                    }
+
+                    callback.accept(new TrackResult(TrackResult.Status.PLAYLIST_LOADED, null, playlist, null));
+                }
+            }
+
+            @Override
+            public void noMatches() {
+                callback.accept(new TrackResult(TrackResult.Status.NO_MATCHES, null, null, null));
+            }
+
+            @Override
+            public void loadFailed(FriendlyException exception) {
+                callback.accept(new TrackResult(TrackResult.Status.LOAD_FAILED, null, null, null));
+            }
+        });
+    }
+
+
     public LoadResult loadAndPlay(long guildId, String trackUrl, Consumer<TrackResult> callback) {
         GuildMusicManager musicManager = getGuildMusicManager(guildId);
         LoadResult result = new LoadResult();
@@ -61,6 +127,7 @@ public class PlayerManager {
                 result.message = "Added to queue: " + track.getInfo().title;
                 callback.accept(new TrackResult(TrackResult.Status.TRACK_LOADED, track, null, null));
             }
+
 
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {

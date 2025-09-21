@@ -10,13 +10,13 @@ import org.djbot.Utils.EmbedWrapper;
 import org.djbot.Utils.GuildMusicManager;
 import org.djbot.Utils.PlayerManager;
 import org.djbot.Utils.Thumbnail;
-
-import java.awt.*;
+import org.djbot.category.BotCategories;
 
 public class Remove extends Command {
     public Remove() {
         this.name = "remove";
         this.help = "Remove a song from the queue";
+        this.category = new BotCategories().MusicCat();
     }
 
     @Override
