@@ -1,33 +1,33 @@
 package org.djbot.music;
 
-import com.jagrosh.jdautilities.command.Command;
-import com.jagrosh.jdautilities.command.CommandEvent;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.EmbedWrapper;
-import org.djbot.Utils.GuildMusicManager;
-import org.djbot.Utils.PlayerManager;
-import org.djbot.Utils.Thumbnail;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import org.djbot.Utils.helper.EmbedWrapper;
+import org.djbot.Utils.music.GuildMusicManager;
+import org.djbot.Utils.music.PlayerManager;
 import org.djbot.category.BotCategories;
 
-public class Remove extends Command {
+import java.util.Collections;
+
+public class Remove extends SlashCommand {
+    private final boolean isEphemeral = true;
     public Remove() {
         this.name = "remove";
         this.help = "Remove a song from the queue";
         this.category = new BotCategories().MusicCat();
+        this.options = Collections.singletonList(new OptionData(OptionType.STRING, "target", "Track pos", true));
     }
 
     @Override
-    protected void execute(CommandEvent e) {
+    protected void execute(SlashCommandEvent e) {
         Guild guild = e.getGuild();
-        TextChannel channel = e.getTextChannel();
-        Member selfMember = e.getSelfMember();
-        String[] args = e.getArgs().split(" ");
-        int queuePOS = Integer.parseInt(args[0]);
+        int queuePOS = e.getOption("target").getAsInt();
         GuildMusicManager guildMusicManager = PlayerManager.getInstance().getGuildMusicManager(guild.getIdLong());
         AudioTrack audioTrack = guildMusicManager.scheduler.remove(queuePOS);
-        channel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(selfMember.getEffectiveName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild),audioTrack.getInfo().title + " has been skipped!",null,null,new Thumbnail().Thumbnail(audioTrack),null)).queue();
+        e.replyEmbeds(EmbedWrapper.createInfo(audioTrack.getInfo().title + " has been skipped!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
     }
 }

@@ -1,16 +1,16 @@
 package org.djbot.music;
 
-import com.jagrosh.jdautilities.command.Command;
-import com.jagrosh.jdautilities.command.CommandEvent;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.managers.AudioManager;
-import org.djbot.Utils.EmbedWrapper;
-import org.djbot.Utils.GuildMusicManager;
-import org.djbot.Utils.PlayerManager;
+import org.djbot.Utils.helper.EmbedWrapper;
+import org.djbot.Utils.music.GuildMusicManager;
+import org.djbot.Utils.music.PlayerManager;
 import org.djbot.category.BotCategories;
 
-public class Leave extends Command {
+public class Leave extends SlashCommand {
+    private final boolean isEphemeral = true;
     public Leave() {
         this.name = "leave";
         this.help = "Leave the VC";
@@ -18,19 +18,22 @@ public class Leave extends Command {
     }
 
     @Override
-    protected void execute(CommandEvent e) {
+    protected void execute(SlashCommandEvent e) {
         Guild guild = e.getGuild();
-        MessageChannel messageChannel = e.getChannel();
         AudioManager audioManager = guild.getAudioManager();
         Boolean voiceChannel = audioManager.isConnected();
         PlayerManager playerManager = PlayerManager.getInstance();
         GuildMusicManager guildMusicManager = playerManager.getGuildMusicManager(guild.getIdLong());
         if (!voiceChannel) {
-            messageChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "I am not connected to a voice channel!", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
+            e.replyEmbeds(EmbedWrapper.createInfo("I am not connected to a voice channel!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
         } else {
-            guild.getAudioManager().closeAudioConnection();
-            guildMusicManager.scheduler.getQueue().clear();
-            messageChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "Disconnected from the voice channel!", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
+            if (e.getMember().getVoiceState().getChannel().asVoiceChannel().equals(e.getGuild().getSelfMember().getVoiceState().getChannel().asVoiceChannel())) {
+                guild.getAudioManager().closeAudioConnection();
+                guildMusicManager.scheduler.clearQueue();
+                e.replyEmbeds(EmbedWrapper.createInfo("Disconnected from the voice channel!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
+            } else {
+                e.replyEmbeds(EmbedWrapper.createInfo("You aren't connected to the VC!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
+            }
         }
     }
 }

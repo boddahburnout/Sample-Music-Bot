@@ -5,46 +5,28 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
-import org.djbot.config.ConfigManager;
-import org.djbot.music.*;
-import org.simpleyaml.configuration.file.YamlFile;
+import org.djbot.Utils.command.CommandManager;
+import org.djbot.Utils.helper.ConfigData;
 
 public abstract class Main {
     private static JDA jda;
+    private static final ConfigData configData = new ConfigData();
     public static void main(String[] args) {
         CommandClientBuilder clientBuilder = new CommandClientBuilder();
+        CommandManager commandManager = new CommandManager();
 
         clientBuilder.setPrefix(".");
 
-        clientBuilder.setOwnerId("292484423658766346");
+        clientBuilder.setOwnerId(configData.getOwnerId());
+        clientBuilder.setActivity(Activity.playing(configData.getActivity()));
 
-        clientBuilder.addCommands(
-                new Join(),
-                new Leave(),
-                new Pause(),
-                new Play(),
-                new Playing(),
-                new Queue(),
-                new Remove(),
-                new Shuffle(),
-                new Skip(),
-                new Volume(),
-                new PlayNow()
-        );
+        clientBuilder.addSlashCommands(commandManager.getSlashCommands());
         try {
-            new ConfigManager().setConfig();
-            //Access the config
-            YamlFile Config = new ConfigManager().accessConfig();
-            //Sets token to a string
-            String token = Config.getString("Global.Bot-Token");
-
-            jda = JDABuilder.createDefault(token)
+            jda = JDABuilder.createDefault(configData.getJDAToken())
                     .enableIntents(GatewayIntent.MESSAGE_CONTENT)
-                    .setActivity(Activity.playing("Smoking hella dank at the Deathstar"))
                     .addEventListeners(
                             clientBuilder.build()
                     )
-
                     .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -52,5 +34,8 @@ public abstract class Main {
     }
     public static JDA getJdaInstance() {
         return jda;
+    }
+    public static ConfigData getConfigData() {
+        return configData;
     }
 }

@@ -1,94 +1,78 @@
 package org.djbot.music;
 
-import com.google.api.services.youtube.model.SearchResult;
-import com.jagrosh.jdautilities.command.Command;
-import com.jagrosh.jdautilities.command.CommandEvent;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.*;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import org.djbot.Main;
+import org.djbot.Utils.helper.ConfigData;
+import org.djbot.Utils.helper.EmbedWrapper;
+import org.djbot.Utils.music.GuildMusicManager;
+import org.djbot.Utils.music.PlayerManager;
+import org.djbot.Utils.music.TrackResult;
 import org.djbot.category.BotCategories;
-import org.djbot.config.ConfigManager;
-import org.simpleyaml.configuration.file.YamlFile;
-import java.util.List;
+
+import java.util.Collections;
 import java.util.Objects;
 
-public class PlayNow extends Command {
+public class PlayNow extends SlashCommand {
+    private final boolean isEphemeral = true;
+
     public PlayNow() {
         this.name = "playnow";
-        this.help = "Play a song now before the current queue";
+        this.help = "Play a song now";
         this.category = new BotCategories().MusicCat();
+        this.options = Collections.singletonList(new OptionData(OptionType.STRING, "song", "Name or url of a song", true));
     }
+
     @Override
-    protected void execute(CommandEvent e) {
+    protected void execute(SlashCommandEvent e) {
         Guild guild = e.getGuild();
-        TextChannel textChannel = e.getTextChannel();
         Member member = e.getMember();
+        Member selfMember = e.getGuild().getSelfMember();
         PlayerManager playerManager = PlayerManager.getInstance();
-        GuildMusicManager guildMusicManager = playerManager.getGuildMusicManager(guild.getIdLong());
-
         boolean state = Objects.requireNonNull(member.getVoiceState()).inAudioChannel();
-        String args = e.getArgs();
-
+        boolean selfState = Objects.requireNonNull(selfMember.getVoiceState()).inAudioChannel();
+        boolean isDeaf = member.getVoiceState().isDeafened();
+        String args = e.getOption("song").getAsString();
+        ConfigData configData = Main.getConfigData();
         if (!state) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(
-                    guild.getJDA().getSelfUser().getName(),
-                    null, null,
-                    new EmbedWrapper().GetGuildEmbedColor(guild),
-                    "Join the voice channel first!",
-                    null, null,
-                    guild.getJDA().getSelfUser().getEffectiveAvatarUrl(),
-                    null)).queue();
+            e.replyEmbeds(EmbedWrapper.createInfo("Join the voice channel first!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
             return;
         }
-
-        // Save the currently playing track if any
-        AudioTrack currentTrack = guildMusicManager.player.getPlayingTrack();
-        if (currentTrack != null) {
-            currentTrack = currentTrack.makeClone();
-            //guildMusicManager.player.stopTrack();
-            guildMusicManager.scheduler.getQueue().remove(currentTrack);
+        if (isDeaf) {
+            e.replyEmbeds(EmbedWrapper.createInfo("Your not even listening your opinion does not matter", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
+            return;
         }
+        if (!selfState) {
+            e.replyEmbeds(EmbedWrapper.createInfo("Ask me to join the voice channel first!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
+            return;
+        }
+        //AudioTrack currentTrack = playerManager.getGuildMusicManager(guild.getIdLong()).player.getPlayingTrack();
+        try {
+            if (!args.startsWith("http")) {
+                args = "ytsearch:" + args;
+            }
 
-        if (args.startsWith("http")) {
-            // Play the link immediately
-            AudioTrack finalCurrentTrack = currentTrack;
+            GuildMusicManager guildMusicManager = playerManager.getGuildMusicManager(guild.getIdLong());
+            guildMusicManager.scheduler.setTextChannel(e.getTextChannel());
+
             playerManager.loadAndPlayNow(guild.getIdLong(), args, loadResult -> {
                 TrackResult.Status status = loadResult.getStatus();
-                new Play().response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
-
-                // Re-add the old track at the top of the queue
-                if (finalCurrentTrack != null) {
-                    guildMusicManager.scheduler.queueFirst(finalCurrentTrack.makeClone());
-                }
+                loadResult.response(status, e, loadResult.getTrack().makeClone(), loadResult.getPlaylist());
             });
-        } else {
-            // Use YouTube search
-            YouTubeSearcher yt = new YouTubeSearcher();
-            List<SearchResult> results = yt.search(args, 5);
 
-            if (results != null && !results.isEmpty()) {
-                SearchResult firstResult = results.get(0);
-                String videoId = firstResult.getId().getVideoId();
-                String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
+            //if (currentTrack != null) {
+            //    guildMusicManager.scheduler.queueFirst(currentTrack.makeClone());
+            //}
 
-                AudioTrack finalCurrentTrack = currentTrack;
-                playerManager.loadAndPlayNow(guild.getIdLong(), videoUrl, loadResult -> {
-                    TrackResult.Status status = loadResult.getStatus();
-                    new Play().response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
-
-                    // Re-add the old track at the top of the queue
-                    if (finalCurrentTrack != null) {
-                        guildMusicManager.scheduler.queueFirst(finalCurrentTrack.makeClone());
-                    }
-                });
-            }
+            int volume = configData.getGuildVolume(guild.getIdLong());
+            guildMusicManager.player.setVolume(volume);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
-
-        // Ensure safe volume setting
-        YamlFile botConfig = new ConfigManager().accessConfig();
-        int volume = botConfig.getInt("Settings.Guilds." + guild.getId() + ".Volume", 50);
-        guildMusicManager.player.setVolume(volume);
     }
 }

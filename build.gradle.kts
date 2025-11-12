@@ -30,11 +30,13 @@ dependencies {
     implementation("com.googlecode.json-simple:json-simple:1.1.1")
     implementation("com.github.Carleslc:Simple-YAML:1.8.4")
     implementation("pw.chew:jda-chewtils:2.1")
+    implementation("com.google.genai:google-genai:1.17.0")
     implementation("org.jsoup:jsoup:1.21.2")
     implementation("dev.arbjerg:lavaplayer:2.2.4")
     implementation("com.google.apis:google-api-services-youtube:v3-rev222-1.25.0")
     implementation("dev.lavalink.youtube:youtube-plugin:1.13.5")
     implementation("org.beryx:awt-color-factory:1.0.0")
+    implementation("org.reflections:reflections:0.10.2")
 }
 
 tasks.test {

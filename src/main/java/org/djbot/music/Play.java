@@ -1,92 +1,73 @@
 package org.djbot.music;
 
-import com.google.api.services.youtube.model.SearchResult;
-import com.jagrosh.jdautilities.command.Command;
-import com.jagrosh.jdautilities.command.CommandEvent;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.*;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import org.djbot.Main;
+import org.djbot.Utils.helper.ConfigData;
+import org.djbot.Utils.helper.EmbedWrapper;
+import org.djbot.Utils.music.GuildMusicManager;
+import org.djbot.Utils.music.PlayerManager;
+import org.djbot.Utils.music.TrackResult;
 import org.djbot.category.BotCategories;
-import org.djbot.config.ConfigManager;
-import org.simpleyaml.configuration.file.YamlFile;
 
-import java.util.List;
+import java.util.Collections;
 import java.util.Objects;
 
-public class Play extends Command {
+public class Play extends SlashCommand {
+    private final boolean isEphemeral = true;
     public Play() {
         this.name = "play";
         this.help = "Play music";
         this.category = new BotCategories().MusicCat();
+        this.options = Collections.singletonList(new OptionData(OptionType.STRING, "song", "Name or url of a song", true));
     }
 
     @Override
-    protected void execute(CommandEvent e) {
+    protected void execute(SlashCommandEvent e) {
         Guild guild = e.getGuild();
-        TextChannel textChannel = e.getTextChannel();
         Member member = e.getMember();
-        Member selfMember = e.getSelfMember();
+        Member selfMember = e.getGuild().getSelfMember();
         PlayerManager playerManager = PlayerManager.getInstance();
         boolean state = Objects.requireNonNull(member.getVoiceState()).inAudioChannel();
         boolean selfState = Objects.requireNonNull(selfMember.getVoiceState()).inAudioChannel();
         boolean isDeaf = member.getVoiceState().isDeafened();
-        String args = e.getArgs();
-        YamlFile botConfig = new ConfigManager().accessConfig();
+        String args = e.getOption("song").getAsString();
+        ConfigData configData = Main.getConfigData();
         if (!state) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "Join the voice channel first!", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
+            e.replyEmbeds(EmbedWrapper.createInfo("Join the voice channel first!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
             return;
         }
         if (isDeaf) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "Your not even listening your opinion does not matter", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
+            e.replyEmbeds(EmbedWrapper.createInfo("Your not even listening your opinion does not matter", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
             return;
         }
         if (!selfState) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(guild.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(guild), "Ask me to join the voice channel first!", null, null, guild.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
+            e.replyEmbeds(EmbedWrapper.createInfo("Ask me to join the voice channel first!", new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(false).queue();
             return;
         }
         try {
-            if (e.getArgs().startsWith("http")) {
-                playerManager.loadAndPlay(guild.getIdLong(), e.getArgs(), loadResult -> {
+            if (args.startsWith("http")) {
+                playerManager.loadAndPlay(guild.getIdLong(), args, loadResult -> {
                     TrackResult.Status status = loadResult.getStatus();
-                    response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
+                    loadResult.response(status, e, loadResult.getTrack(), loadResult.getPlaylist());
                 });
             } else {
-                YouTubeSearcher yt = new YouTubeSearcher();
-                List<SearchResult> results = yt.search(args, 5);
-                if (results != null && !results.isEmpty()) {
-                    SearchResult firstResult = results.get(0);
-                    String videoId = firstResult.getId().getVideoId();
-                    String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
-                    playerManager.loadAndPlay(guild.getIdLong(), videoUrl, loadResult -> {
-                        TrackResult.Status status = loadResult.getStatus();
-                        response(status, textChannel, loadResult.getTrack(), loadResult.getPlaylist());
-                    });
-                }
-                int volume = botConfig.getInt("Settings.Guilds." + guild.getId() + ".Volume", 50);
-                playerManager.getGuildMusicManager(guild.getIdLong()).player.setVolume(volume);
+                String searchQuery = "ytsearch:" + args;
+                GuildMusicManager guildMusicManager = playerManager.getGuildMusicManager(guild.getIdLong());
+                guildMusicManager.scheduler.setTextChannel(e.getTextChannel());
+                playerManager.loadAndPlay(guild.getIdLong(), searchQuery, loadResult -> {
+                    TrackResult.Status status = loadResult.getStatus();
+                    loadResult.response(status, e, loadResult.getTrack(), loadResult.getPlaylist());
+                });
+                int volume = configData.getGuildVolume(guild.getIdLong());
+                guildMusicManager.player.setVolume(volume);
             }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
-        }
-    }
-    public void response(TrackResult.Status status, TextChannel textChannel, AudioTrack audioTrack, AudioPlaylist audioPlaylist) {
-        if (status == TrackResult.Status.LOAD_FAILED) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(textChannel.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(textChannel.getGuild()),  "Could not play the Requested track", null, null, textChannel.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
-        }
-        if (status == TrackResult.Status.PLAYLIST_LOADED) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(textChannel.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(textChannel.getGuild()), "Added playlist: **" + audioPlaylist.getName() + "** with **" + audioPlaylist.getTracks().size() + "** tracks.", null, null, textChannel.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
-        }
-        if (status == TrackResult.Status.NO_MATCHES) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(textChannel.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(textChannel.getGuild()),  "Nothing found by " + audioTrack.getInfo().uri, null, null, textChannel.getJDA().getSelfUser().getEffectiveAvatarUrl(), null)).queue();
-        }
-        if (status == TrackResult.Status.TRACK_LOADED) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(textChannel.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(textChannel.getGuild()),  "Adding to queue " + audioTrack.getInfo().title, null, null, new Thumbnail().Thumbnail(audioTrack), null)).queue();
-        }
-        if (status == TrackResult.Status.SEARCH_RESULT) {
-            textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage(textChannel.getJDA().getSelfUser().getName(), null, null, new EmbedWrapper().GetGuildEmbedColor(textChannel.getGuild()), "Adding to queue (search result): " + audioTrack.getInfo().title, null, null, new Thumbnail().Thumbnail(audioTrack), null)).queue();
         }
     }
 }

@@ -1,34 +1,32 @@
 package org.djbot.music;
 
-import com.jagrosh.jdautilities.command.Command;
-import com.jagrosh.jdautilities.command.CommandEvent;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.EmbedWrapper;
-import org.djbot.Utils.PlayerManager;
+import org.djbot.Utils.helper.EmbedWrapper;
+import org.djbot.Utils.music.PlayerManager;
 import org.djbot.category.BotCategories;
 
-import java.awt.*;
 import java.util.List;
 
-public class Queue extends Command {
+public class Queue extends SlashCommand {
+    private final boolean isEphemeral = true;
     public Queue() {
         this.name = "queue";
         this.help = "List the upcoming songs";
         this.category = new BotCategories().MusicCat();
      }
     @Override
-    protected void execute(CommandEvent e) {
+    protected void execute(SlashCommandEvent e) {
         Guild guild = e.getGuild();
-        TextChannel textChannel = e.getTextChannel();
         PlayerManager playerManager = PlayerManager.getInstance();
 
         List<AudioTrack> queue = playerManager.getGuildMusicManager(guild.getIdLong())
                 .scheduler.getQueue();
 
         if (queue.isEmpty()) {
-            textChannel.sendMessage("The queue is currently empty.").queue();
+            e.reply("The queue is currently empty.").setEphemeral(isEphemeral).queue();
             return;
         }
 
@@ -50,7 +48,6 @@ public class Queue extends Command {
         if (queue.size() > trackCount) {
             sb.append("... and ").append(queue.size() - trackCount).append(" more.");
         }
-
-        textChannel.sendMessageEmbeds(new EmbedWrapper().EmbedMessage("Queue", null, null, Color.YELLOW, sb.toString(), null, null, e.getSelfUser().getAvatarUrl(),null)).queue();
+        e.replyEmbeds(EmbedWrapper.createInfo(sb.toString(), new EmbedWrapper().GetGuildEmbedColor(guild))).setEphemeral(isEphemeral).queue();
     }
 }
