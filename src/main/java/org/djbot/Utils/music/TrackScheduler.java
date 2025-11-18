@@ -1,4 +1,4 @@
-package org.djbot.Utils.music;
+package org.djbot.utils.music;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
@@ -6,8 +6,9 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import net.dv8tion.jda.api.entities.Guild; // <-- IMPORT ADDED
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import org.djbot.Utils.Gemini.GeminiClient;
-import org.djbot.Utils.helper.EmbedWrapper; // <-- IMPORT ADDED
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
+import org.djbot.utils.Gemini.GeminiClient;
+import org.djbot.utils.discord.helpers.EmbedWrapper; // <-- IMPORT ADDED
 
 import java.awt.Color; // <-- IMPORT ADDED
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ public class TrackScheduler extends AudioEventAdapter {
     private final AudioPlayer player;
     private final BlockingQueue<AudioTrack> queue;
     private boolean autoplay = false;
-    private TextChannel textChannel;
+    private MessageChannelUnion messageChannelUnion;
     private long guildId;
 
     // --- NEW FIELDS FOR HISTORY ---
@@ -82,8 +83,8 @@ public class TrackScheduler extends AudioEventAdapter {
     // --- END NEW HISTORY METHODS ---
 
 
-    public void setTextChannel(TextChannel textChannel) {
-        this.textChannel = textChannel;
+    public void setTextChannel(MessageChannelUnion messageChannelUnion) {
+        this.messageChannelUnion = messageChannelUnion;
     }
 
     public void shuffleQueue() {
@@ -176,8 +177,8 @@ public class TrackScheduler extends AudioEventAdapter {
             List<String> history = getTrackHistory();
 
             if (history.isEmpty()) {
-                if (textChannel != null) {
-                    textChannel.sendMessage("🎶 Autoplay has no history to base suggestions on.").queue();
+                if (messageChannelUnion != null) {
+                    messageChannelUnion.sendMessage("🎶 Autoplay has no history to base suggestions on.").queue();
                 }
                 return;
             }
@@ -185,8 +186,8 @@ public class TrackScheduler extends AudioEventAdapter {
             String[] results = geminiClient.getPlaylistFromHistory(history);
 
             if (results == null || results.length == 0) {
-                if (textChannel != null) {
-                    textChannel.sendMessage("🎶 Autoplay tried to run, but Gemini had no suggestions.").queue();
+                if (messageChannelUnion != null) {
+                    messageChannelUnion.sendMessage("🎶 Autoplay tried to run, but Gemini had no suggestions.").queue();
                 }
                 return;
             }
@@ -241,13 +242,13 @@ public class TrackScheduler extends AudioEventAdapter {
                         }
 
                         // --- FINAL CHANGE ---
-                        if (textChannel != null) {
+                        if (messageChannelUnion != null) {
                             // Get the guild from the textChannel
-                            Guild guild = textChannel.getGuild();
+                            Guild guild = messageChannelUnion.asTextChannel().getGuild();
                             // Get the color
                             Color guildColor = new EmbedWrapper().GetGuildEmbedColor(guild);
                             // Send the embed
-                            textChannel.sendMessageEmbeds(EmbedWrapper.createInfo(summary.toString(), guildColor)).queue();
+                            messageChannelUnion.sendMessageEmbeds(EmbedWrapper.createInfo(summary.toString(), guildColor)).queue();
                         }
                         // --- END FINAL CHANGE ---
                     }

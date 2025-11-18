@@ -4,13 +4,9 @@ import com.jagrosh.jdautilities.command.CommandClientBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.requests.GatewayIntent;
-import org.djbot.events.GuildJoinHandler;
-import org.djbot.events.GuildMemberJoinHandler;
-import org.djbot.events.MessageReceivedHandler;
-import org.djbot.utils.bot.config.ConfigData;
-import org.djbot.utils.discord.command.CommandManager;
+import org.djbot.utils.command.CommandManager;
+import org.djbot.utils.discord.helpers.ConfigData;
 
 public abstract class Main {
     private static JDA jda;
@@ -25,43 +21,21 @@ public abstract class Main {
         clientBuilder.setActivity(Activity.playing(configData.getActivity()));
 
         clientBuilder.addSlashCommands(commandManager.getSlashCommands());
-        clientBuilder.addCommands(commandManager.getTextCommands());
-
         try {
             jda = JDABuilder.createDefault(configData.getJDAToken())
                     .enableIntents(GatewayIntent.MESSAGE_CONTENT)
                     .addEventListeners(
-                            clientBuilder.build(),
-                            new GuildJoinHandler(),
-                            new GuildMemberJoinHandler(),
-                            new MessageReceivedHandler()
+                            clientBuilder.build()
                     )
                     .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        setGuildDefaults();
     }
     public static JDA getJdaInstance() {
         return jda;
     }
     public static ConfigData getConfigData() {
         return configData;
-    }
-    public static void setGuildDefaults() {
-        for (Guild guild : jda.getGuilds()) {
-            setGuildDefault(guild);
-        }
-    }
-    public static void setGuildDefault(Guild guild) {
-        if (!configData.isGuildColor(guild.getIdLong())) {
-            configData.setGuildColor(guild.getIdLong(), "#f54242");
-        }
-        if (!configData.isGuildVolume(guild.getIdLong())) {
-            configData.setGuildVolume(guild.getIdLong(), 50);
-        }
-        if (!configData.isEphemeral(guild.getIdLong())) {
-            configData.setEphemeral(guild.getIdLong(), true);
-        }
     }
 }

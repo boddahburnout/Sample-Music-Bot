@@ -1,4 +1,4 @@
-package org.djbot.utils.Gemini;
+package org.djbot.utils.bot.gemini;
 
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -14,7 +14,7 @@ public class GeminiClient {
     private final String API_KEY = Main.getConfigData().getGeminiToken();
     Client client;
     public GeminiClient() {
-        this.client = Client.builder().apiKey(API_KEY)
+         this.client = Client.builder().apiKey(API_KEY)
                 .build();
     }
     public String chat(Message message, SelfUser selfUser) throws Exception {
@@ -76,7 +76,7 @@ public class GeminiClient {
         if (!configData.isWelcomePrompt(guildId)) {
             //Content systemInstruction = Content.fromParts(
             //        Part.fromText("You are a discord bot made for the server the Deathstar. Your creator's name is darth kota. In the request sent to you here I want you to generate a creative, Starwars themed welcome message to the new user. I will include info about the user in the attached message, Mention is how you ping the member and the name is just their name in plain text"));
-            systemInstruction = Content.fromParts(
+             systemInstruction = Content.fromParts(
                     Part.fromText("Your task is to creatively welcome new users provided."+ context));
         } else {
             systemInstruction = Content.fromParts(Part.fromText(context+configData.getWelcomePrompt(guildId)));
@@ -97,9 +97,9 @@ public class GeminiClient {
                         //.thinkingConfig(ThinkingConfig.builder().thinkingBudget(0))
                         .systemInstruction(systemInstruction)
                         .build();
-        GenerateContentResponse response =
-                client.models.generateContent("gemini-2.5-flash", userMessage, config);
-        return response.text();
+            GenerateContentResponse response =
+                    client.models.generateContent("gemini-2.5-flash", userMessage, config);
+            return response.text();
     }
     public String sendImageResponse(Content systemInstruction, String userMessage) {
         Client client = Client.builder().apiKey(API_KEY)

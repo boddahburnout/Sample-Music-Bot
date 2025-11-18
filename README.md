@@ -1,6 +1,4 @@
 # Sample-Music-Bot
 basic bot with common music commands
 
-Work in progress:
-  Gemini powered autoplay
-  Youtube api search caching for reduced api use
+Gemini support, This bots autoplay is gemini powered and generates playlist from user prompt
