@@ -1,4 +1,4 @@
-# Sample-Music-Bot
+# Gemini-Bot
 Features:
   Dynamic Command registration
   Gemini AI powered autoplay and prompted playlist
